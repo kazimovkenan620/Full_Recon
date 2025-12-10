@@ -1,71 +1,147 @@
-Recon Automation Workflow
+📘 README – Recon Automation Workflow
+🔧 Installation
 
-This project integrates multiple reconnaissance, crawling, and scanning tools into a single automated workflow.
-The goal is to collect subdomains, crawl endpoints, extract JavaScript routes, detect secrets, run vulnerability scans, and gather external intelligence — all while filtering noise and reducing false positives.
+Bu layihənin işləməsi üçün bütün recon alətlərini avtomatik quraşdıran skripti istifadə edin:
 
-🚀 Integrated Tools
-🔍 Discovery & Enumeration
+chmod +x install_recon_tools.sh
+./install_recon_tools.sh
 
-subfinder — passive subdomain discovery
 
-httpx — live host probing, status codes, redirects, content length
+Bu installer aşağıdakı alətləri quraşdırır:
+subfinder, httpx, katana, gospider, waybackurls, LinkFinder, SecretFinder, ParamSpider, ffuf, nuclei, shodan, censys, VirusTotal API dəstəyi və s.
 
-waybackurls — historical URL extraction
 
-🌐 Crawling & URL Collection
+🇦🇿 Recon Automation Workflow
 
-katana — high-performance crawler with JavaScript awareness
+Bu skript domen haqqında maksimal məlumatı toplamaq üçün geniş alətləri birləşdirir.
+Məqsəd — subdomain tapmaq, hostları yoxlamaq, URL-ləri toplamaq, JS fayllarını analiz etmək, gizli açarları aşkar etmək, zəiflikləri skan etmək və OSINT məlumatı çıxarmaqdır.
 
-gospider — supplementary crawler for deeper traversal
+🚀 İnteqrasiya olunan alətlər
 
-🧩 JavaScript Analysis
+Subdomain kəşfiyyatı: subfinder, CIRT.sh
 
-LinkFinder — extract JS endpoints
+Host yoxlaması: httpx (status, redirect, content-length, fingerprint)
 
-SecretFinder — detect secrets, API keys, tokens inside JS files
+Crawling: katana, gospider
 
-🛡 Security Scanning
+Tarixi URL toplama: waybackurls
 
-Nuclei — vulnerability scanning (background execution supported)
+JS analizi: LinkFinder, SecretFinder
 
-ParamSpider — parameter discovery for SSRF/XSS/open redirect vectors
+Zəiflik skanları: nuclei (background), ParamSpider
 
-CIRT.sh — configuration and security checks
+Fuzzing: ffuf
 
-🧪 Fuzzing
+Kəşfiyyat (OSINT): Shodan, SecurityTrails, Censys, VirusTotal
 
-ffuf — directory and file fuzzing for hidden paths
+🔎 Skript nə edir?
 
-📡 External Intelligence
+Subdomain tapır → filtrləyir
 
-SecurityTrails API — domain intel & subdomain enumeration
+Canlı hostları müəyyən edir
 
-Shodan API — internet-facing service discovery
+Katana + Gospider + Wayback ilə URL-ləri toplayır
 
-Censys API — host fingerprinting and network enumeration
+JS fayllarını recursive analiz edir
 
-VirusTotal API — domain reputation and threat enrichment
+JS endpointlər + API yolları + sızmış açarları çıxarır
 
-📁 What the Workflow Produces
+Nuclei ilə zəiflik skanı işə salır (background)
 
-Subdomain lists
+ParamSpider ilə parametrləri tapır
 
-Active hosts (httpx)
+Shodan / Censys / VirusTotal / SecurityTrails ilə OSINT məlumatı çıxarır
 
-Crawled URLs + historical URLs
+Docker & Kubernetes yanlış konfiqurasiyalarını yoxlayır
 
-Filtered endpoints (API, login, admin, config, etc.)
+Səs-küyü (false-positive) azaltmaq üçün content-length + fingerprint filtrasiyası tətbiq edir
 
-JS endpoints + secrets
 
-Fuzzing results (ffuf)
 
-Vulnerability scan results (Nuclei)
+🇬🇧 Recon Automation Workflow 
 
-External intelligence reports
+This script combines a full suite of reconnaissance tools into one automated pipeline.
+It discovers subdomains, probes live hosts, crawls URLs, analyzes JavaScript, detects secrets, runs vulnerability scans, performs fuzzing, and gathers OSINT.
 
-False positives are reduced using response-length and content-fingerprint filtering.
+🚀 Integrated tools
 
-🎯 Goal
+Discovery: subfinder, CIRT.sh
 
-To generate clean, structured, and actionable recon data that can be used directly for penetration testing, bug bounty, or continuous asset monitoring.
+Probing: httpx (status, redirects, content-length, fingerprints)
+
+Crawling: katana, gospider
+
+Historical URLs: waybackurls
+
+JS analysis: LinkFinder, SecretFinder
+
+Scanning: nuclei (background mode), ParamSpider
+
+Fuzzing: ffuf
+
+OSINT: Shodan, SecurityTrails, Censys, VirusTotal
+
+🔎 Workflow highlights
+
+Enumerates and filters subdomains
+
+Detects live hosts with detailed metadata
+
+Collects and cleans URLs
+
+Extracts JS routes, APIs, sensitive endpoints
+
+Detects leaked secrets/tokens
+
+Performs vulnerability scanning automatically
+
+Gathers external intelligence
+
+Reduces false positives using response fingerprinting
+
+
+
+🇷🇺 Recon Automation Workflow
+
+Этот скрипт объединяет множество инструментов разведки в один автоматизированный процесс.
+Он собирает субдомены, проверяет хосты, краулит URL-адреса, анализирует JS, ищет секреты, выполняет сканирование уязвимостей и OSINT.
+
+🚀 Интегрированные инструменты
+
+Поиск субдоменов: subfinder, CIRT.sh
+
+Проверка хостов: httpx
+
+Краулинг: katana, gospider
+
+Исторические URL: waybackurls
+
+JS анализ: LinkFinder, SecretFinder
+
+Сканирование: nuclei, ParamSpider
+
+Фаззинг: ffuf
+
+Разведка: Shodan, SecurityTrails, Censys, VirusTotal
+
+🔎 Что делает workflow?
+
+Ищет и фильтрует субдомены
+
+Определяет живые хосты
+
+Собирает и обрабатывает URL-адреса
+
+Извлекает JS-эндпоинты и секреты
+
+Запускает сканер уязвимостей
+
+Собирает OSINT-данные
+
+Использует контент-фингерпринты для снижения ложных срабатываний
+
+
+
+
+
+üçün birbaşa istifadə edilə bilsin.
