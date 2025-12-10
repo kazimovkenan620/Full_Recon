@@ -719,18 +719,48 @@ fi
 ########################################
 
 echo
-echo "[*] Step 11: Directory fuzzing with ffuf..."
+echo "[*] Step 11: Directory fuzzing with ffuf (running in background)..."
 
 if [[ -s "${HOSTS_DIR}/live_subdomains.txt" ]]; then
-    # Simple directory fuzzing on first 5 live hosts
-    head -5 "${HOSTS_DIR}/live_subdomains.txt" | while read -r host; do
-        echo "  [-] Fuzzing: $host"
-        ffuf -u "${host}/FUZZ" -w /usr/share/wordlists/dirb/common.txt \
-            -mc 200,301,302,403 \
-            -o "${FUZZ_DIR}/ffuf_$(echo "$host" | sed 's|https\?://||' | tr '/' '_').json" \
-            -of json \
-            -s >/dev/null 2>&1 || true
-    done
+    FUZZ_LOG="${FUZZ_DIR}/ffuf_console.log"
+    FUZZ_TARGETS="${FUZZ_DIR}/ffuf_targets.txt"
+
+    # Write the first 5 live hosts into a separate file
+    head -5 "${HOSTS_DIR}/live_subdomains.txt" > "$FUZZ_TARGETS"
+
+    if [[ -s "$FUZZ_TARGETS" ]]; then
+        # Run the entire fuzzing process as a single background job
+        (
+            while read -r host; do
+                [[ -z "$host" ]] && continue
+
+                OUT_FILE="${FUZZ_DIR}/ffuf_$(echo "$host" | sed 's|https\?://||' | tr '/' '_').json"
+
+                echo "  [-] Fuzzing started: $host" >> "$FUZZ_LOG"
+
+                ffuf -u "${host}/FUZZ" \
+                    -w /usr/share/wordlists/dirb/common.txt \
+                    -mc 200,301,302,403 \
+                    -o "$OUT_FILE" \
+                    -of json \
+                    -s >>"$FUZZ_LOG" 2>&1 || true
+
+                echo "  [+] Fuzzing finished: $host -> $OUT_FILE" >> "$FUZZ_LOG"
+                echo "" >> "$FUZZ_LOG"
+            done < "$FUZZ_TARGETS"
+
+            echo "[+] FFUF fuzzing finished for all targets." >> "$FUZZ_LOG"
+        ) &
+
+        FFUF_PID=$!
+        echo "    [+] FFUF is running in background (PID: $FFUF_PID)"
+        echo "    [+] Output directory: $FUZZ_DIR"
+        echo "    [+] Live log:        $FUZZ_LOG"
+    else
+        echo "[!] No hosts to fuzz, skipping ffuf..."
+    fi
+else
+    echo "[!] No live subdomains for ffuf, skipping..."
 fi
 
 
