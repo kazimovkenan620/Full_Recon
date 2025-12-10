@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Yumşaq (optional) komanda runner-i: uğursuz olsa, skript ölmür, qısa error verir
 run_soft() {
     local label="$1"; shift
 
@@ -12,37 +11,48 @@ run_soft() {
 
 
 ########################################
-# Enhanced professional recon pipeline
-# Tools integrated:
-#   - subfinder    (subdomain discovery)
-#   - httpx        (probing + status + redirects)
-#   - katana       (crawler + JS aware)
-#   - gospider     (extra crawling)
-#   - waybackurls  (historical URLs)
-#   - LinkFinder   (JS → endpoints)
-#   - SecretFinder (JS → secrets/tokens)
-#   - Nuclei       (vulnerability scanning)
-#   - ParamSpider  (parameter discovery)
-#   - SecurityTrails (domain information)
-#   - Shodan       (internet-connected device search)
-#   - Censys       (internet-wide search engine)
-#   - CIRT.sh      (Security Configuration Checking)
-#   - ffuf         (Directory/File Fuzzing)
-#   - VirusTotal   (Threat Intelligence)
+# PROFESSIONAL RECON PIPELINE
+#
+# This script automates recon by combining a wide set of tools:
+#
+#   - subfinder       : subdomain enumeration
+#   - httpx           : probing, status codes, redirects
+#   - katana          : advanced crawler (JS-aware)
+#   - gospider        : additional crawling
+#   - waybackurls     : fetch historical URLs
+#   - LinkFinder      : extract endpoints from JS
+#   - SecretFinder    : find tokens/secrets in JS files
+#   - nuclei          : template-based vulnerability scanning
+#   - ParamSpider     : discover parameters
+#   - ffuf            : directory/file fuzzing
+#   - SecurityTrails  : domain information API
+#   - Shodan          : internet-wide device search
+#   - Censys/ZoomEye   : internet-wide search engines
+#   - VirusTotal      : threat intelligence and URL analysis
 ########################################
 
-# === CONFIGURABLE PATHS ===
+# -------------------------------------------------------
+# DİQQƏT: Aşağıdakı yollar şəxsi istifadəçiyə məxsusdur.
+# Bu hissədəki dəyişənlərə sizin öz sisteminizdə alətlərin yerləşdiyi
+# PATH-ları yazmalısınız.
+#
+# Əgər bu alətlər başqa qovluqda yerləşirsə, sadəcə həmin yolları 
+# uyğun olaraq dəyişin.
+# -------------------------------------------------------
 LINKFINDER="/usr/local/bin/linkfinder"
 SECRETFINDER="/usr/bin/python3 /home/mrk4z1m0v/SecretFinder/SecretFinder.py"
 NUCLEI_TEMPLATES="$HOME/.local/nuclei-templates"
 
-# === API KEYS (Configure these before use) ===
+# API keys (must be set before use)
 SHODAN_API_KEY="YOUR_API_KEY"
 CENSYS_PAT="YOUR_API_KEY"
 ZOOMEYE_API_KEY="YOUR_API_KEY"
 VIRUSTOTAL_API_KEY="YOUR_API_KEY"
 SECURITYTRAILS_API_KEY="YOUR_API_KEY"
-# === USAGE CHECK ===
+
+# -------------------------------------------------------
+# Basic argument check
+# -------------------------------------------------------
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <domain>"
     echo "Example: $0 example.com"
@@ -51,7 +61,9 @@ fi
 
 DOMAIN="$1"
 
-# === TOOL CHECKS ===
+# -------------------------------------------------------
+# Ensure required tools are installed
+# -------------------------------------------------------
 REQUIRED_CMDS=(subfinder httpx katana gospider waybackurls python3 nuclei paramspider ffuf)
 for cmd in "${REQUIRED_CMDS[@]}"; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -61,7 +73,9 @@ for cmd in "${REQUIRED_CMDS[@]}"; do
     fi
 done
 
-# === LinkFinder detection ===
+# -------------------------------------------------------
+# Auto-detect LinkFinder if installed
+# -------------------------------------------------------
 LINKFINDER="$(command -v linkfinder || true)"
 
 if [[ -z "$LINKFINDER" ]]; then
@@ -71,45 +85,51 @@ else
     echo "[+] LinkFinder found at: $LINKFINDER"
 fi
 
-# Check LinkFinder availability
+# Secondary check (common pattern in production scripts)
 if [[ -z "$LINKFINDER" ]]; then
     echo "[!] LinkFinder not found. Install using: pip install linkfinder"
 else
     echo "[+] LinkFinder OK: $LINKFINDER"
 fi
 
-# Check SecretFinder script
+# -------------------------------------------------------
+# Check SecretFinder script path
+# -------------------------------------------------------
+# DİQQƏT: Bu yol şəxsi istifadəçiyə məxsusdur.
+# Siz SecretFinder-i haraya klon etmisinizsə: 
+#   /home/<istifadəçi_adı>/SecretFinder/SecretFinder.py
+# həmin yeri bura yazmalısınız.
 if [[ ! -f "/home/mrk4z1m0v/SecretFinder/SecretFinder.py" ]]; then
     echo "[!] SecretFinder script not found."
 else
     echo "[+] SecretFinder OK."
 fi
 
-# === OUTPUT STRUCTURE ===
+# -------------------------------------------------------
+# Create output directory structure
+# -------------------------------------------------------
 TS="$(date +%F_%H-%M-%S)"
 OUTDIR="recon_${DOMAIN}_${TS}"
 
-# 1) Bütün raw məlumatlar üçün tək qovluq
+# 1) One folder for all raw output
 ALL_RAW_DIR="${OUTDIR}/all_raw"
 mkdir -p "$ALL_RAW_DIR"
 
-# Mövcud kodu çox dəyişməmək üçün alias-lar: hamısı all_raw-a göstərir
+# Aliases for compatibility with existing logic
 RAW_DIR="$ALL_RAW_DIR"
 HOSTS_DIR="$ALL_RAW_DIR"
 URLS_DIR="$ALL_RAW_DIR"
 
-# 2) JS RAW ayrıca – assets-dən kənarda
+# 2) Separate raw JS files
 JS_RAW_DIR="${OUTDIR}/js_all_raw"
 mkdir -p "$JS_RAW_DIR"
 
-# 3) Pentest üçün təmiz nəticələr
+# 3) Clean pentest-ready assets directory
 ASSETS_DIR="${OUTDIR}/assets"
 JS_ASSETS_DIR="${ASSETS_DIR}/js_assets"
 JS_DIR="$JS_ASSETS_DIR"
 
-# 4) Digər nəticə qovluqları
-#   - FUZZ və SCANS: xam nəticələr → all_raw
-#   - FINDINGS: təmizlənmiş nəticələr → assets
+# 4) FUZZ and SCAN results also stored in raw folder
 FUZZ_DIR="$ALL_RAW_DIR"
 SCANS_DIR="$ALL_RAW_DIR"
 FINDINGS_DIR="$ASSETS_DIR"
@@ -118,11 +138,13 @@ mkdir -p "$ASSETS_DIR" "$JS_DIR"
 
 
 
-# Main output files
+# -------------------------------------------------------
+# Result files (main summary + full output)
+# -------------------------------------------------------
 MAIN_RESULTS="${OUTDIR}/main_results.txt"
 ALL_RESULTS="${OUTDIR}/all_results.txt"
 
-# Initialize output files
+# Clear them
 > "$MAIN_RESULTS"
 > "$ALL_RESULTS"
 
@@ -131,7 +153,9 @@ echo "[*] Main results: $MAIN_RESULTS"
 echo "[*] All results: $ALL_RESULTS"
 echo
 
-# Function to append to both main and all results
+# -------------------------------------------------------
+# Utility: write results to both main and full logs
+# -------------------------------------------------------
 log_to_files() {
     echo "$1" >> "$ALL_RESULTS"
     if [[ "$2" == "main" ]]; then
@@ -139,7 +163,9 @@ log_to_files() {
     fi
 }
 
-# Function to add section headers
+# -------------------------------------------------------
+# === SUBDOMAIN ENUMERATION ===
+# -------------------------------------------------------
 add_section() {
     local section_name="$1"
     local include_in_main="${2:-true}"
@@ -160,12 +186,16 @@ add_section() {
     fi
 }
 
-# Eyni content-length-li səhifələrdən max 2 dənə saxlayan filter
+# ------------------------------------------------------------
+# Keeps a maximum of 2 URLs per content-length to reduce false positives.
+# This prevents multiple "duplicate" URLs with the same response size from cluttering results.
+# ------------------------------------------------------------
 filter_by_content_length() {
     local input_file="$1"
     local output_file="$2"
     local tmp_httpx="$(mktemp)"
 
+    # Skip if input file is empty
     if [[ ! -s "$input_file" ]]; then
         echo "[!] $input_file boşdur, filter_by_content_length skip."
         return 0
@@ -173,15 +203,16 @@ filter_by_content_length() {
 
     echo "[*] Reducing false positives by response length for: $input_file"
 
-    # URL-ləri httpx ilə probe edirik, CL-i çıxarırıq
+     # Probe URLs with httpx to get status codes and content-length
     httpx -silent -follow-redirects \
           -timeout 10 \
           -mc 200,301,302,307,308,401,403 \
           -cl \
           -l "$input_file" > "$tmp_httpx" 2>/dev/null || true
 
-    # httpx output formatı: URL [status] [cl] [content-type] ...
-    # Burda eyni CL üçün maksimum 2 URL saxlayırıq
+    # httpx output format:
+    # URL [status] [content-length] [content-type] ...
+    # We keep a maximum of 2 URLs per content-length
     awk '
     {
         url = $1
@@ -226,8 +257,10 @@ run_soft "CIRT.sh subdomains" \
     | grep -oP '[a-zA-Z0-9.-]+\.'"$DOMAIN" 2>/dev/null \
     | sort -u >> "${RAW_DIR}/subdomains_all.txt" || true
 
+# Remove duplicates
 sort -u "${RAW_DIR}/subdomains_all.txt" -o "${RAW_DIR}/subdomains_all.txt"
 
+# Count total subdomains found
 SUBCOUNT="$(wc -l < "${RAW_DIR}/subdomains_all.txt" || echo 0)"
 echo "    [+] Total subdomains found: ${SUBCOUNT}"
 
@@ -248,6 +281,7 @@ fi
 echo
 echo "[*] Step 2: Probing subdomains with httpx..."
 
+# Probe all subdomains with httpx to get live hosts and extra info
 httpx \
     -l "${RAW_DIR}/subdomains_all.txt" \
     -silent \
@@ -258,14 +292,14 @@ httpx \
     -mc 200,201,202,204,301,302,307,308,401,403 \
     | tee "${HOSTS_DIR}/live_subdomains_httpx_full.txt" >/dev/null
 
-# Extract live hosts (2xx/3xx/401/403) – sadə
+# Extract only live hosts (2xx/3xx/401/403)
 cut -d' ' -f1 "${HOSTS_DIR}/live_subdomains_httpx_full.txt" \
     | sort -u > "${HOSTS_DIR}/live_subdomains.txt"
 
 LIVECOUNT="$(wc -l < "${HOSTS_DIR}/live_subdomains.txt" || echo 0)"
 echo "    [+] Live subdomains (2xx/3xx): ${LIVECOUNT}"
 
-# Təmiz host list-i assets altına da kopyalayırıq
+# Copy clean host list to assets for later use
 cp "${HOSTS_DIR}/live_subdomains.txt" "${ASSETS_DIR}/live_subdomains.txt" 2>/dev/null || true
 
 # Log live subdomains to main results
@@ -273,7 +307,7 @@ add_section "LIVE SUBDOMAINS (2xx/3xx STATUS)" "true"
 cat "${HOSTS_DIR}/live_subdomains.txt" >> "$MAIN_RESULTS"
 
 
-# Log full httpx results to all results
+# Log full httpx output to all results
 add_section "FULL HTTPX RESULTS (STATUS + REDIRECTS)" "false"
 cat "${HOSTS_DIR}/live_subdomains_httpx_full.txt" >> "$ALL_RESULTS"
 echo "" >> "$ALL_RESULTS"
@@ -304,11 +338,7 @@ timeout 300 gospider -S "${HOSTS_DIR}/live_subdomains.txt" \
              -q \
              -o "${URLS_DIR}/gospider_raw" >/dev/null 2>&1 || echo "[!] Gospider timeout"
 
-# 3-pilləli filter:
-# 1) status code
-# 2) content-length
-# 3) response hash (əgər httpx hash qaytarırsa)
-# Hər "eyni" content üçün max 2 URL saxlayır.
+
 filter_by_fingerprint() {
     local input_file="$1"
     local output_file="$2"
@@ -322,15 +352,25 @@ filter_by_fingerprint() {
 
     echo "[*] Reducing false positives by response fingerprint for: $input_file"
 
-    # httpx ilə status, content-length və hash götürürük
+    # Probe URLs with httpx and extract:
+    #   - status code
+    #   - content-length
+    #   - SHA256 hash (response body hash)
     httpx -silent -follow-redirects \
           -timeout 10 \
           -mc 200,201,202,204,301,302,307,308,401,403 \
           -sc -cl -hash sha256 \
           -l "$input_file" > "$tmp_httpx" 2>/dev/null || true
 
-    # Nümunə output (təxmini):
-    # https://site.com [200] [1234] [sha256:abcdef...]
+    
+    # Example httpx output:
+    #   https://site.com [200] [1234] [sha256:abcdef...]
+    #
+    # Logic:
+    #   - If hash exists → use it as fingerprint (strongest).
+    #   - Otherwise use (status + content-length).
+    #   - Otherwise use content-length only.
+    #   - Keep max 2 URLs per fingerprint bucket.
     awk '
     {
         url = $1
@@ -379,7 +419,8 @@ filter_by_fingerprint() {
 }
 
 
-# Extract URLs from gospider output (directory içindəki bütün fayllardan)
+# Extract URLs from all gospider output files inside the directory
+# Grep recursively (-r), extract URLs and deduplicate
 if [[ -d "${URLS_DIR}/gospider_raw" ]]; then
     grep -rohP '(http|https)://[^\s"]+' "${URLS_DIR}/gospider_raw" 2>/dev/null \
         | sort -u > "${URLS_DIR}/urls_gospider.txt" || true
@@ -388,87 +429,89 @@ fi
 echo "[*] Step 5: Pulling historical URLs from waybackurls..."
 echo "$DOMAIN" | waybackurls | sort -u > "${URLS_DIR}/urls_wayback.txt"
 
-# Combine all URLs
+# Merge URLs from katana, gospider and wayback
 echo "[*] Step 6: Combining and deduplicating URLs..."
 cat "${URLS_DIR}/urls_katana.txt" \
     "${URLS_DIR}/urls_gospider.txt" \
     "${URLS_DIR}/urls_wayback.txt" 2>/dev/null \
     | sort -u > "${URLS_DIR}/urls_all.txt"
 
-# NEW: dev/junk URL-ləri təmizlə (node_modules, webpack, devtools və s.)
+# Remove development/junk noise (webpack, dev-tools, hot reload endpoints, etc.)
+# If grep fails, fall back to full list
 grep -Ev 'node_modules/|webpack/|react-devtools|sockjs-node|hot-update|__webpack_hmr|webpack-dev-server|browser-sync' \
     "${URLS_DIR}/urls_all.txt" > "${URLS_DIR}/urls_clean.txt" || cp "${URLS_DIR}/urls_all.txt" "${URLS_DIR}/urls_clean.txt"
 
 URLCOUNT="$(wc -l < "${URLS_DIR}/urls_clean.txt" || echo 0)"
 echo "    [+] Total unique URLs (clean): ${URLCOUNT}"
 
-# Log all URLs to all results
+# Add full results to the ALL_RESULTS log
 add_section "ALL DISCOVERED URLS" "false"
 cat "${URLS_DIR}/urls_all.txt" >> "$ALL_RESULTS"
 echo "" >> "$ALL_RESULTS"
 
-# Log active URLs to main results (filtered)
+# Add *active* URLs to the MAIN results (JS excluded later)
 add_section "ACTIVE URLS (FROM LIVE HOSTS)" "true"
 cat "${URLS_DIR}/urls_katana.txt" "${URLS_DIR}/urls_gospider.txt" 2>/dev/null \
     | grep -Ev 'node_modules/|webpack/|react-devtools|sockjs-node|hot-update|__webpack_hmr|webpack-dev-server|browser-sync' \
     | sort -u >> "$MAIN_RESULTS"
 echo "" >> "$MAIN_RESULTS"
 
+# Remove media/static assets: images, videos, fonts, CSS, map files, etc.
 grep -Ev '\.(png|jpe?g|gif|svg|ico|webp|bmp|tiff?|mp4|mp3|avi|mov|mkv|webm|woff2?|ttf|eot|otf|css|map)(\?|$)' \
     "${URLS_DIR}/urls_clean.txt" > "${ASSETS_DIR}/url_tmp.txt" || true
 
-# 2) JS URL-ləri də çıxarılır – assets/url.txt = JS-siz, media-sız təmiz URL siyahısı
+# Remove .js endpoints to get pure crawlable endpoints
 grep -Ev '\.js(\?|$| )' "${ASSETS_DIR}/url_tmp.txt" > "${ASSETS_DIR}/url.txt" || true
 rm -f "${ASSETS_DIR}/url_tmp.txt"
 
-# 3) Parametrli URL-lər (XSS/SSRF/open-redirect üçün)
+# Extract URLs that contain parameters (?param=) → used for XSS/SSRF/Open Redirect testing
 grep '\?' "${ASSETS_DIR}/url.txt" | sort -u > "${ASSETS_DIR}/url_params.txt" || true
 
-# 4) Endpoint-lər: əvvəl critical, sonra qalan endpoint-lər
+# Identify critical endpoints (auth, API, admin, upload, login, token, redirect, etc.)
 CRIT_PATTERN='(/api/|/auth|/login|/signin|/logout|/admin|/config|/debug|/upload|/callback|/redirect|/token|/oauth|/profile|/account)'
 
-# Critical endpoint-lər
+# Extract critical endpoints
 grep -Ei "$CRIT_PATTERN" "${ASSETS_DIR}/url.txt" | sort -u > "${ASSETS_DIR}/endpoint.txt" || true
 
-# Bütün endpoint-vari URL-lər (domain + ən azı 1 path hissəsi)
+# Extract all endpoints (URLs with at least 1 path segment)
 awk -F/ 'NF > 3' "${ASSETS_DIR}/url.txt" | sort -u > "${ASSETS_DIR}/endpoint_all_tmp.txt" || true
 
-# Critical-lərlə təkrar olmayanları endpoint.txt-ə əlavə edirik
+# Add non-critical endpoints into endpoint.txt
 grep -vxF -f "${ASSETS_DIR}/endpoint.txt" \
     "${ASSETS_DIR}/endpoint_all_tmp.txt" >> "${ASSETS_DIR}/endpoint.txt" || true
 
 rm -f "${ASSETS_DIR}/endpoint_all_tmp.txt"
 
-# Eyni fingerprint-li endpoint-lərdən max 2 dənə saxla
+# Apply fingerprint filtering to endpoints (keep max 2 URLs per fingerprint)
 if [[ -s "${ASSETS_DIR}/endpoint.txt" ]]; then
     filter_by_fingerprint "${ASSETS_DIR}/endpoint.txt" "${ASSETS_DIR}/endpoint_filtered.txt"
     mv "${ASSETS_DIR}/endpoint_filtered.txt" "${ASSETS_DIR}/endpoint.txt"
 fi
 
 ########################################
-# 3-pilləli GLOBAL FILTER (URL-lər üçün)
+# GLOBAL URL FILTER (3-layer architecture)
 ########################################
 echo "[*] Running global response fingerprint filter on URL corpus..."
 
-# url.txt (əsas təmiz URL list)
+# Filter main cleaned URL list
 if [[ -s "${ASSETS_DIR}/url.txt" ]]; then
     filter_by_fingerprint "${ASSETS_DIR}/url.txt" "${ASSETS_DIR}/url_filtered.txt"
     mv "${ASSETS_DIR}/url_filtered.txt" "${ASSETS_DIR}/url.txt"
 fi
 
-# urls_clean.txt (bütün təmiz URL korpusu)
+# Filter entire cleaned URL corpus
 if [[ -s "${URLS_DIR}/urls_clean.txt" ]]; then
     filter_by_fingerprint "${URLS_DIR}/urls_clean.txt" "${URLS_DIR}/urls_clean_filtered.txt"
     mv "${URLS_DIR}/urls_clean_filtered.txt" "${URLS_DIR}/urls_clean.txt"
 fi
 
-# katana URL-ləri
+# Filter Katana crawler URLs
 if [[ -s "${URLS_DIR}/urls_katana.txt" ]]; then
     filter_by_fingerprint "${URLS_DIR}/urls_katana.txt" "${URLS_DIR}/urls_katana_filtered.txt"
     mv "${URLS_DIR}/urls_katana_filtered.txt" "${URLS_DIR}/urls_katana.txt"
 fi
 
-# gospider URL-ləri
+# Filter Gospider URLs
 if [[ -s "${URLS_DIR}/urls_gospider.txt" ]]; then
     filter_by_fingerprint "${URLS_DIR}/urls_gospider.txt" "${URLS_DIR}/urls_gospider_filtered.txt"
     mv "${URLS_DIR}/urls_gospider_filtered.txt" "${URLS_DIR}/urls_gospider.txt"
@@ -492,7 +535,7 @@ grep -Ei '\.js(\?|$| )' "${URLS_DIR}/urls_clean.txt" \
 JSCOUNT="$(wc -l < "${JS_DIR}/js_files.txt" 2>/dev/null || echo 0)"
 echo "    [+] Unique JS files (initial): ${JSCOUNT}"
 
-# JS fayllarını report-a əlavə et
+# Add JS files to the report
 add_section "JAVASCRIPT FILES" "true"
 if [[ -s "${JS_DIR}/js_files.txt" ]]; then
     cat "${JS_DIR}/js_files.txt" >> "$MAIN_RESULTS"
@@ -504,10 +547,11 @@ fi
 echo "" >> "$MAIN_RESULTS"
 echo "" >> "$ALL_RESULTS"
 
+# Recursive JS analysis using LinkFinder + SecretFinder
 if [[ "$JSCOUNT" -gt 0 ]]; then
     echo "[*] Step 8–9: Recursive JS analysis (LinkFinder + SecretFinder)..."
 
-    # RAW JS çıxışları (js_all_raw/ altında)
+
     ENDPOINTS_RAW="${JS_RAW_DIR}/js_endpoints_raw.txt"
     SECRETS_RAW="${JS_RAW_DIR}/js_secrets_raw.txt"
     PROCESSED="${JS_RAW_DIR}/js_files_processed.txt"
@@ -518,8 +562,9 @@ if [[ "$JSCOUNT" -gt 0 ]]; then
     > "$SECRETS_RAW"
     > "$PROCESSED"
 
+# Identify JS files not yet processed
     while true; do
-        # Bu iterasiyada hələ işlənməmiş JS-lər
+        
         if [[ -s "$PROCESSED" ]]; then
             grep -vxF -f "$PROCESSED" "${JS_DIR}/js_files.txt" 2>/dev/null > "$JS_BATCH" || true
         else
@@ -546,12 +591,12 @@ if [[ "$JSCOUNT" -gt 0 ]]; then
             echo "$js_url" >> "$PROCESSED"
         done < "$JS_BATCH"
 
-        # Bütün raw çıxışdan yeni .js URL-ləri çıxarırıq
+            # Extract new JS URLs from raw LinkFinder output
         grep -oP 'https?://[^\s"<>]+' "$ENDPOINTS_RAW" 2>/dev/null \
             | grep -Ei '\.js(\?|$| )' \
             | sort -u > "$JS_NEW" || true
 
-        # Yeni JS varsa, js_files.txt-ə əlavə edirik
+          # Add new JS files to processing list
         if [[ -s "$JS_NEW" ]]; then
             grep -vxF -f "${JS_DIR}/js_files.txt" "$JS_NEW" >> "${JS_DIR}/js_files.txt" || true
             sort -u "${JS_DIR}/js_files.txt" -o "${JS_DIR}/js_files.txt"
@@ -560,14 +605,16 @@ if [[ "$JSCOUNT" -gt 0 ]]; then
         fi
     done
 
-    # İndi bütün JS chain işlənib – təmiz nəticələr JS_ASSETS altında
+    # Extract non-JS endpoints
     grep -oP 'https?://[^\s"<>]+' "$ENDPOINTS_RAW" 2>/dev/null \
         | grep -Ev '\.js(\?|$| )' \
         | sort -u > "${JS_DIR}/js_url.txt" || true
 
+    # Remove static/media assets
     grep -Ev '\.(png|jpe?g|gif|svg|ico|webp|bmp|tiff?|mp4|mp3|avi|mov|mkv|webm|woff2?|ttf|eot|otf|css|map)(\?|$)' \
         "${JS_DIR}/js_url.txt" | sort -u > "${JS_DIR}/js_endpoints.txt" || true
 
+    # JS secrets and tokens
     grep -Ei '(/api/|/auth|/login|/signin|/logout|/admin|/config|/debug|/upload|/callback|/redirect|/token|/oauth|/profile|/account)' \
         "${JS_DIR}/js_endpoints.txt" | sort -u > "${JS_DIR}/js_api.txt" || true
 
@@ -575,13 +622,13 @@ if [[ "$JSCOUNT" -gt 0 ]]; then
     | grep -Ev '^\s*\[-\]|node_modules/|webpack/|react-devtools|sockjs-node|hot-update|__webpack_hmr' \
     | sort -u > "${JS_DIR}/js_secret_key.txt" || true
 
-# JS endpoint-lərində də eyni fingerprint-li cavablardan max 2 dənə saxla
+    # Apply fingerprint filtering on JS endpoints
 if [[ -s "${JS_DIR}/js_endpoints.txt" ]]; then
     filter_by_fingerprint "${JS_DIR}/js_endpoints.txt" "${JS_DIR}/js_endpoints_filtered.txt"
     mv "${JS_DIR}/js_endpoints_filtered.txt" "${JS_DIR}/js_endpoints.txt"
 fi
 
-    # Report-a artıq təmiz nəticələri yazırıq
+    # Add cleaned JS results to reports
     add_section "JS ENDPOINTS (CLEAN)" "true"
     if [[ -s "${JS_DIR}/js_endpoints.txt" ]]; then
         cat "${JS_DIR}/js_endpoints.txt" >> "$MAIN_RESULTS"
@@ -614,17 +661,17 @@ fi
 echo
 echo "[*] Step 10: Running advanced search patterns..."
 
-# Configuration files and sensitive endpoints
+# Search for configuration files and other sensitive endpoints
 echo "[*] Searching for configuration files and sensitive endpoints..."
 PATTERNS=(
-    "inurl:conf|inurl:env|inurl:cgi|inurl:bin|inurl:etc|inurl:root|inurl:sql|inurl:backup|inurl:admin|inurl:php"
-    "inurl:login|inurl:signin|intitle:login|intitle:signin|inurl:secure"
-    "inurl:api|inurl:rest|inurl:v1|inurl:v2|inurl:v3"
-    "inurl:demo|inurl:dev|inurl:staging|inurl:test|inurl:sandbox"
-    "ext:log|ext:txt|ext:csv|ext:conf|ext:cnf|ext:ini|ext:env|ext:sh|ext:bak|ext:backup"
-    "inurl:wp-|inurl:wp-content|inurl:plugins|inurl:uploads|inurl:themes"
-    "inurl:include|inurl:dir|inurl:detail=|inurl:file=|inurl:folder=|inurl:inc="
-    "inurl:redirectUrl=http|inurl:redir|inurl:url|inurl:redirect|inurl:return|inurl:src=http"
+    "inurl:conf|inurl:env|inurl:cgi|inurl:bin|inurl:etc|inurl:root|inurl:sql|inurl:backup|inurl:admin|inurl:php|inurl:config|inurl:database|inurl:db|inurl:credentials|inurl:passwd|inurl:password|inurl:secret|inurl:key|ext:json|ext:xml|ext:yml|ext:ini|ext:env|ext:bak|ext:backup|ext:old|ext:swp"
+    "inurl:login|inurl:signin|intitle:login|intitle:signin|inurl:secure|inurl:admin|inurl:administrator|inurl:auth|inurl:account|inurl:user|intitle:admin|intitle:dashboard"
+    "inurl:api|inurl:rest|inurl:v1|inurl:v2|inurl:v3|inurl:graphql|inurl:soap|inurl:auth|inurl:token|inurl:endpoint|inurl:service"
+    "inurl:demo|inurl:dev|inurl:staging|inurl:test|inurl:sandbox|inurl:preview|inurl:uat|inurl:beta|inurl:internal|inurl:mock"
+    "ext:log|ext:txt|ext:csv|ext:conf|ext:cnf|ext:ini|ext:env|ext:sh|ext:bak|ext:backup|ext:old|ext:sql|ext:json|ext:xml"
+    "inurl:wp-|inurl:wp-content|inurl:plugins|inurl:uploads|inurl:themes|inurl:joomla|inurl:drupal|inurl:modules|inurl:sites"
+    "inurl:include|inurl:dir|inurl:detail=|inurl:file=|inurl:folder=|inurl:inc=|inurl:page=|inurl:path=|inurl:module=|inurl:view=|inurl:download=|inurl:source=|inurl:document="
+    "inurl:redirectUrl=http|inurl:redir|inurl:url|inurl:redirect|inurl:return|inurl:src=http|inurl:next|inurl:target|inurl:goto|inurl:callback|inurl:uri"
 )
 
 > "${FINDINGS_DIR}/sensitive_patterns.txt"
@@ -686,12 +733,9 @@ if [[ -s "${HOSTS_DIR}/live_subdomains.txt" ]]; then
     done
 fi
 
-########################################
-# 7) SECURITY SCANNING
-########################################
 
 ########################################
-# 12) Nuclei background scanning
+# 12) Nuclei background scanning (SECURITY SCANNING)
 ########################################
 
 echo
@@ -703,6 +747,7 @@ NUCLEI_LOG="${ASSETS_DIR}/nuclei_console.log"
 
 if [[ -s "$NUCLEI_INPUT" ]]; then
 
+# Run Nuclei scan with medium, high, and critical severity levels
     nuclei -l "$NUCLEI_INPUT" \
            -t "$NUCLEI_TEMPLATES" \
            -o "$NUCLEI_OUTPUT" \
@@ -728,6 +773,9 @@ fi
 
 
 
+########################################
+# 13) Parameter discovery with ParamSpider
+########################################
 echo "[*] Step 13: Running ParamSpider for parameter discovery..."
 run_soft "ParamSpider" \
     paramspider --domain "$DOMAIN" --output "${SCANS_DIR}/paramspider_results.txt" >/dev/null 2>&1
@@ -761,7 +809,7 @@ fi
 echo
 echo "[*] Step 14: Gathering external intelligence..."
 
-# Shodan search with advanced queries
+# Query Shodan for information using advanced search filters
 echo "[*] Querying Shodan..."
 SHODAN_RESULTS="${SCANS_DIR}/shodan_combined.txt"
 > "$SHODAN_RESULTS"
@@ -769,9 +817,9 @@ SHODAN_RESULTS="${SCANS_DIR}/shodan_combined.txt"
 if command -v shodan >/dev/null 2>&1 && [[ "$SHODAN_API_KEY" != "your-shodan-api-key" ]]; then
     run_soft "Shodan init" shodan init "$SHODAN_API_KEY"
     run_soft "Shodan host lookup" shodan host "$DOMAIN" >> "$SHODAN_RESULTS" 2>&1
-    # advanced searches üçün də eyni
+   
 
-    # Advanced Shodan queries
+    # Run advanced Shodan search queries
     echo "=== Advanced Shodan Queries ===" >> "$SHODAN_RESULTS"
     shodan search "ssl.cert.subject.CN:\"$DOMAIN\" http.title:\"index of/\"" --limit 10 >> "$SHODAN_RESULTS" 2>&1 || true
     shodan search "http.title:\"admin\" OR http.title:\"control panel\" OR \"phpMyAdmin\" port:8080,80,443" --limit 10 >> "$SHODAN_RESULTS" 2>&1 || true
@@ -780,7 +828,7 @@ if command -v shodan >/dev/null 2>&1 && [[ "$SHODAN_API_KEY" != "your-shodan-api
     shodan search "\"Set-Cookie: mongo-express=\" \"200 OK\"" --limit 5 >> "$SHODAN_RESULTS" 2>&1 || true
 fi
 
-# Censys search
+# Query Censys for host information
 echo "[*] Querying Censys..."
 if [[ "$CENSYS_PAT" != "" ]]; then
     curl -s -H "Authorization: Bearer $CENSYS_PAT" \
@@ -789,21 +837,21 @@ if [[ "$CENSYS_PAT" != "" ]]; then
 fi
 
 
-# VirusTotal intelligence
+# Query VirusTotal for domain intelligence
 echo "[*] Querying VirusTotal..."
 if [[ "$VIRUSTOTAL_API_KEY" != "your-virustotal-api-key" ]]; then
     curl -s -X GET "https://www.virustotal.com/api/v3/domains/$DOMAIN" \
          -H "x-apikey: $VIRUSTOTAL_API_KEY" > "${SCANS_DIR}/virustotal_info.json" 2>&1 || true
 fi
 
-# === SecurityTrails API Query ===
+# Query SecurityTrails for domain and subdomain information
 if [[ "$SECURITYTRAILS_API_KEY" != "" ]]; then
     echo "[*] Querying SecurityTrails..."
     curl -s -H "APIKEY: $SECURITYTRAILS_API_KEY" \
         "https://api.securitytrails.com/v1/domain/$DOMAIN" \
         > "${ASSETS_DIR}/securitytrails_info.json"
 
-    # Subdomains də götürək
+    # Fetch subdomains from SecurityTrails
     curl -s -H "APIKEY: $SECURITYTRAILS_API_KEY" \
         "https://api.securitytrails.com/v1/domain/$DOMAIN/subdomains" \
         > "${ASSETS_DIR}/securitytrails_subdomains.json"
@@ -835,13 +883,108 @@ fi
 echo
 echo "[*] Step 15: Scanning for Docker & Kubernetes misconfigurations..."
 
-# Search for Docker-related endpoints
-DOCKER_PATTERNS=(
-    "inurl:\"/v2/_catalog\""
-    "inurl:\"docker-compose.yml\""
-    "intext:\"services:\" ext:yaml"
-    "\"Docker Registry HTTP API\""
+# Detect Docker-related endpoints
+DOCKER_K8S_WORDS=(
+    # Docker general
+    "docker"
+    "dockerfile"
+    "dockerfiles"
+    "dockerfile.dev"
+    "docker-compose"
+    "compose"
+    "docker-compose.yml"
+    "docker-compose.yaml"
+    "container"
+    "containers"
+    "image"
+    "images"
+    "registry"
+    "docker-service"
+    "docker-daemon"
+    "docker-config"
+
+    # Docker environments
+    "docker/dev"
+    "docker/test"
+    "docker/stage"
+    "docker/prod"
+
+    # Docker components
+    "build"
+    "deploy"
+    "volumes"
+    "volume"
+    "network"
+    "networks"
+    "env"
+    "environment"
+    "configs"
+    "config"
+    "secrets"
+
+    # Kubernetes general
+    "k8s"
+    "kubernetes"
+    "cluster"
+    "clusters"
+    "pod"
+    "pods"
+    "node"
+    "nodes"
+    "deployment"
+    "deployments"
+    "statefulset"
+    "daemonset"
+    "replicaset"
+    "jobs"
+    "cronjob"
+    "rollout"
+
+    # Kubernetes resources
+    "namespace"
+    "namespaces"
+    "service"
+    "services"
+    "svc"
+    "ingress"
+    "ingresses"
+    "configmap"
+    "configmaps"
+    "secret"
+    "secrets"
+    "persistentvolume"
+    "persistentvolumeclaim"
+    "storageclass"
+
+    # Kubernetes manifests
+    "deployment.yaml"
+    "service.yaml"
+    "ingress.yaml"
+    "configmap.yaml"
+    "secret.yaml"
+    "pod.yaml"
+    "statefulset.yaml"
+
+    # Monitoring / Observability
+    "metrics"
+    "monitoring"
+    "observability"
+    "grafana"
+    "prometheus"
+    "loki"
+    "jaeger"
+
+    # DevOps CI/CD related to containers
+    "docker-build"
+    "container-build"
+    "pipeline"
+    "ci"
+    "cd"
+    "artifact"
+    "artifacts"
 )
+
+
 
 > "${FINDINGS_DIR}/docker_findings.txt"
 for pattern in "${DOCKER_PATTERNS[@]}"; do
@@ -849,20 +992,95 @@ for pattern in "${DOCKER_PATTERNS[@]}"; do
 
 done
 
-# Kubernetes patterns
+# Detect Kubernetes-related endpoints and files
 K8S_PATTERNS=(
-    "inurl:kubernetes"
-    "inurl:pods"
-    "intext:\"kubeconfig\" ext:yaml"
-    "intext:\"apiVersion:\""
+    # Kubernetes keywords
+    "kubernetes"
+    "k8s"
+    "kube"
+    "kubeconfig"
+    "kube-system"
+    "kubelet"
+    "kube-proxy"
+    "kubeadm"
+
+    # API / manifests
+    "apiVersion:"
+    "kind:"
+    "metadata:"
+    "spec:"
+    "containers:"
+    "initContainers:"
+    "volumes:"
+    "volumeMounts:"
+    "serviceAccount"
+    "serviceAccountName"
+
+    # Kubernetes resources
+    "Deployment"
+    "StatefulSet"
+    "DaemonSet"
+    "ReplicaSet"
+    "Job"
+    "CronJob"
+    "Pod"
+    "Namespace"
+    "Service"
+    "Ingress"
+    "ConfigMap"
+    "Secret"
+    "PersistentVolume"
+    "PersistentVolumeClaim"
+    "StorageClass"
+
+    # Manifest filenames
+    "deployment.yaml"
+    "deployment.yml"
+    "service.yaml"
+    "ingress.yaml"
+    "configmap.yaml"
+    "secret.yaml"
+    "statefulset.yaml"
+    "pod.yaml"
+    "kustomization.yaml"
+
+    # Helm charts
+    "Chart.yaml"
+    "values.yaml"
+    "templates/"
+    "helm"
+    "helmfile"
+
+    # Operators / CRDs
+    "CustomResourceDefinition"
+    "crd"
+    "operator"
+    "controller"
+    "reconciler"
+
+    # Observability & dashboard
+    "kubernetes dashboard"
+    "prometheus"
+    "grafana"
+    "metrics-server"
+    "metrics.k8s.io"
+
+    # DevOps infra
+    "k8s-dev"
+    "k8s-staging"
+    "k8s-prod"
+    "dev-cluster"
+    "test-cluster"
+    "prod-cluster"
 )
+
 
 > "${FINDINGS_DIR}/kubernetes_findings.txt"
 for pattern in "${K8S_PATTERNS[@]}"; do
     grep -r "$pattern" "${URLS_DIR}/urls_all.txt" 2>/dev/null >> "${FINDINGS_DIR}/kubernetes_findings.txt" || true
 done
 
-# Log infrastructure findings
+# Log infrastructure-related findings
 add_section "INFRASTRUCTURE FINDINGS" "true"
 if [[ -s "${FINDINGS_DIR}/docker_findings.txt" ]]; then
     echo "=== Docker Misconfigurations ===" >> "$MAIN_RESULTS"
@@ -885,13 +1103,13 @@ if [[ -s "${FINDINGS_DIR}/kubernetes_findings.txt" ]]; then
 fi
 
 ########################################
-# 10) FINAL SUMMARY AND ORGANIZATION
+# 10) FINAL SUMMARY AND REPORT ORGANIZATION
 ########################################
 
 echo
 echo "[*] Step 16: Generating final reports..."
 
-# Add comprehensive headers to both files
+# Add headers to both main and all-results files
 {
     echo "========================================"
     echo "         COMPREHENSIVE RECON REPORT"
@@ -901,7 +1119,7 @@ echo "[*] Step 16: Generating final reports..."
     echo ""
 } | tee -a "$MAIN_RESULTS" "$ALL_RESULTS" >/dev/null
 
-# Create table of contents for main results
+# Table of contents for main results
 {
     echo "TABLE OF CONTENTS (Main Results)"
     echo "1. Live Subdomains"
@@ -918,7 +1136,7 @@ echo "[*] Step 16: Generating final reports..."
     echo ""
 } >> "$MAIN_RESULTS"
 
-# Create comprehensive table of contents for all results
+# Table of contents for all results
 {
     echo "TABLE OF CONTENTS (All Results)"
     echo "1. All Subdomains (Raw)"
@@ -938,7 +1156,7 @@ echo "[*] Step 16: Generating final reports..."
     echo ""
 } >> "$ALL_RESULTS"
 
-# Final statistics
+# Display final statistics
 MAIN_SIZE=$(du -h "$MAIN_RESULTS" | cut -f1)
 ALL_SIZE=$(du -h "$ALL_RESULTS" | cut -f1)
 
@@ -964,5 +1182,5 @@ echo " - Subdomains: $SUBCOUNT total, $LIVECOUNT live"
 echo " - URLs: $URLCOUNT discovered"
 echo " - JS Files: $JSCOUNT found"
 echo "========================================"
-echo "[*] Remember to review both files manually!"
+echo "[*] MRK4Z1M0V"
 echo "========================================"
